@@ -5,10 +5,24 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from homeassistant.components.comfoconnect.const import CONF_RESOURCES, DOMAIN
+from homeassistant.components.comfoconnect.const import (
+    CONF_RESOURCES,
+    CONF_USER_AGENT,
+    DEFAULT_NAME,
+    DEFAULT_PIN,
+    DEFAULT_TOKEN,
+    DEFAULT_USER_AGENT,
+    DOMAIN,
+)
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import CONF_HOST, CONF_PLATFORM
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_MODEL,
+    CONF_PIN,
+    CONF_PLATFORM,
+    CONF_TOKEN,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 
@@ -132,6 +146,10 @@ async def test_yaml_setup_preserves_legacy_sensor_resources(
         hass,
         {
             CONF_HOST: TEST_HOST,
+            CONF_MODEL: DEFAULT_NAME,
+            CONF_TOKEN: DEFAULT_TOKEN,
+            CONF_PIN: DEFAULT_PIN,
+            CONF_USER_AGENT: DEFAULT_USER_AGENT,
             CONF_RESOURCES: resources,
         },
     )

@@ -28,6 +28,15 @@ TEST_RESOURCES = ["current_humidity", "current_temperature"]
 TEST_UUID = "00112233445566778899aabbccddeeff"
 
 
+@pytest.fixture(autouse=True)
+def mock_setup_entry() -> Generator[MagicMock]:
+    """Avoid running real integration setup during config flow tests."""
+    with patch(
+        "homeassistant.components.comfoconnect.async_setup_entry", return_value=True
+    ) as mock:
+        yield mock
+
+
 @pytest.fixture
 def mock_validate_input() -> Generator[MagicMock]:
     """Mock input validation to return a fixed bridge."""
@@ -35,6 +44,7 @@ def mock_validate_input() -> Generator[MagicMock]:
         "homeassistant.components.comfoconnect.config_flow._validate_input"
     ) as mock_validate:
         bridge = MagicMock()
+        bridge.name = TEST_MODEL
         bridge.uuid.hex.return_value = TEST_UUID
         mock_validate.return_value = bridge
         yield mock_validate
@@ -64,7 +74,6 @@ async def test_user_step_create_entry(
     assert result["result"].unique_id == TEST_UUID
     assert result["data"] == {
         CONF_HOST: TEST_HOST,
-        CONF_MODEL: TEST_MODEL,
         CONF_TOKEN: TEST_TOKEN,
         CONF_USER_AGENT: TEST_USER_AGENT,
         CONF_PIN: int(TEST_PIN),

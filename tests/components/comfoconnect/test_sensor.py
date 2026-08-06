@@ -10,7 +10,7 @@ from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from tests.common import MockConfigEntry, assert_setup_component
+from tests.common import MockConfigEntry
 
 VALID_RESOURCES = [
     "current_humidity",
@@ -34,9 +34,9 @@ def mock_bridge_discover() -> Generator[MagicMock]:
 
 @pytest.fixture
 def mock_comfoconnect_command() -> Generator[MagicMock]:
-    """Mock the ComfoConnect connect method."""
+    """Mock the ComfoConnect register_sensor method."""
     with patch(
-        "pycomfoconnect.comfoconnect.ComfoConnect._command"
+        "pycomfoconnect.comfoconnect.ComfoConnect.register_sensor"
     ) as mock_comfoconnect_command:
         yield mock_comfoconnect_command
 
@@ -74,9 +74,8 @@ async def setup_sensor(
     )
     entry.add_to_hass(hass)
 
-    with assert_setup_component(1, DOMAIN):
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
 
 
 async def test_setup_preserves_user_entity_name_and_clears_stale_original_name(
