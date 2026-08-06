@@ -67,6 +67,7 @@ async def setup_sensor(
     """Set up ComfoConnect integration from a config entry."""
     entry = MockConfigEntry(
         domain=DOMAIN,
+        title="ComfoAir Q",
         data={
             CONF_HOST: "192.0.2.1",
             CONF_RESOURCES: VALID_RESOURCES,

@@ -76,7 +76,7 @@ async def test_user_step_create_entry(
         CONF_HOST: TEST_HOST,
         CONF_TOKEN: TEST_TOKEN,
         CONF_USER_AGENT: TEST_USER_AGENT,
-        CONF_PIN: int(TEST_PIN),
+        CONF_PIN: TEST_PIN,
     }
     assert CONF_NAME not in result["data"]
     mock_validate_input.assert_called_once()
