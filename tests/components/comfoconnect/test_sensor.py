@@ -5,11 +5,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from homeassistant.components.comfoconnect.const import DOMAIN
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
+from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 
-from tests.common import assert_setup_component
+from tests.common import MockConfigEntry, assert_setup_component
 
 COMPONENT = "comfoconnect"
 VALID_CONFIG = {
@@ -76,40 +79,72 @@ async def setup_sensor(
         await hass.async_block_till_done()
 
 
+async def test_setup_preserves_user_entity_name_and_clears_stale_original_name(
+    hass: HomeAssistant,
+    mock_bridge_discover: MagicMock,
+    mock_comfoconnect_command: MagicMock,
+    mock_comfoconnect_connect: MagicMock,
+) -> None:
+    """Test setup preserves user customizations but clears stale integration metadata."""
+    entry = MockConfigEntry(domain=DOMAIN, data={CONF_HOST: "192.0.2.1"})
+    entry.add_to_hass(hass)
+
+    entity_registry = er.async_get(hass)
+    entity_entry = entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        "unique-id",
+        config_entry=entry,
+        suggested_object_id="test_sensor",
+        original_name="Stale name",
+    )
+    entity_registry.async_update_entity(entity_entry.entity_id, name="User custom name")
+
+    with patch.object(
+        hass.config_entries, "async_forward_entry_setups", return_value=True
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+
+    updated_entry = entity_registry.async_get(entity_entry.entity_id)
+    assert updated_entry is not None
+    assert updated_entry.name == "User custom name"
+    assert updated_entry.original_name is None
+
+
 @pytest.mark.usefixtures("setup_sensor")
 async def test_sensors(hass: HomeAssistant) -> None:
     """Test the sensors."""
-    state = hass.states.get("sensor.comfoairq_inside_humidity")
+    state = hass.states.get("sensor.comfoair_q_inside_humidity")
     assert state is not None
-    assert state.name == "ComfoAirQ Inside humidity"
+    assert state.name == "ComfoAir Q Inside humidity"
     assert state.attributes.get("unit_of_measurement") == "%"
     assert state.attributes.get("device_class") == "humidity"
     assert state.attributes.get("icon") is None
 
-    state = hass.states.get("sensor.comfoairq_inside_temperature")
+    state = hass.states.get("sensor.comfoair_q_inside_temperature")
     assert state is not None
-    assert state.name == "ComfoAirQ Inside temperature"
+    assert state.name == "ComfoAir Q Inside temperature"
     assert state.attributes.get("unit_of_measurement") == "°C"
     assert state.attributes.get("device_class") == "temperature"
     assert state.attributes.get("icon") is None
 
-    state = hass.states.get("sensor.comfoairq_supply_fan_duty")
+    state = hass.states.get("sensor.comfoair_q_supply_fan_duty")
     assert state is not None
-    assert state.name == "ComfoAirQ Supply fan duty"
+    assert state.name == "ComfoAir Q Supply fan duty"
     assert state.attributes.get("unit_of_measurement") == "%"
     assert state.attributes.get("device_class") is None
     assert state.attributes.get("icon") == "mdi:fan-plus"
 
-    state = hass.states.get("sensor.comfoairq_power_usage")
+    state = hass.states.get("sensor.comfoair_q_power_usage")
     assert state is not None
-    assert state.name == "ComfoAirQ Power usage"
+    assert state.name == "ComfoAir Q Power usage"
     assert state.attributes.get("unit_of_measurement") == "W"
     assert state.attributes.get("device_class") == "power"
     assert state.attributes.get("icon") is None
 
-    state = hass.states.get("sensor.comfoairq_preheater_energy_total")
+    state = hass.states.get("sensor.comfoair_q_preheater_energy_total")
     assert state is not None
-    assert state.name == "ComfoAirQ Preheater energy total"
+    assert state.name == "ComfoAir Q Preheater energy total"
     assert state.attributes.get("unit_of_measurement") == "kWh"
     assert state.attributes.get("device_class") == "energy"
     assert state.attributes.get("icon") is None
