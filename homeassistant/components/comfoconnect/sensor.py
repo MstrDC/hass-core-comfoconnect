@@ -50,7 +50,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import ComfoConnectBridge
-from .const import DOMAIN, SIGNAL_COMFOCONNECT_UPDATE_RECEIVED
+from .const import CONF_RESOURCES, DOMAIN, SIGNAL_COMFOCONNECT_UPDATE_RECEIVED
 
 ATTR_AIR_FLOW_EXHAUST = "air_flow_exhaust"
 ATTR_AIR_FLOW_SUPPLY = "air_flow_supply"
@@ -268,10 +268,16 @@ async def async_setup_entry(
 ) -> None:
     """Set up ComfoConnect sensors from a config entry."""
     ccb = config_entry.runtime_data
+    enabled_resources = config_entry.data.get(CONF_RESOURCES)
+    enabled_resource_set = (
+        set(enabled_resources) if isinstance(enabled_resources, list) else None
+    )
+
     async_add_entities(
         [
             ComfoConnectSensor(ccb=ccb, description=description)
             for description in SENSOR_TYPES
+            if enabled_resource_set is None or description.key in enabled_resource_set
         ],
         True,
     )

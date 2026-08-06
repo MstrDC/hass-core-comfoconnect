@@ -10,8 +10,8 @@ from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_MODEL, CONF_NAME, CONF_PIN, CONF_TOKEN
 
 from .const import (
+    CONF_RESOURCES,
     CONF_USER_AGENT,
-    DEFAULT_NAME,
     DEFAULT_PIN,
     DEFAULT_TOKEN,
     DEFAULT_USER_AGENT,
@@ -28,25 +28,35 @@ class InvalidAuth(Exception):
 
 
 def _build_entry_data(
-    data: dict[str, Any], include_name: bool = False
+    data: dict[str, Any],
+    include_name: bool = False,
+    include_resources: bool = False,
+    include_model: bool = False,
 ) -> dict[str, Any]:
     """Build normalized config entry data from user/import input.
 
     Args:
         data: Input data dictionary
         include_name: If True, include CONF_NAME from data (for YAML imports only)
+        include_resources: If True, include CONF_RESOURCES from data
+        include_model: If True, include CONF_MODEL from data
     """
     entry = {
         CONF_HOST: data[CONF_HOST],
-        CONF_MODEL: data.get(CONF_MODEL, DEFAULT_NAME),
         CONF_TOKEN: data.get(CONF_TOKEN, DEFAULT_TOKEN),
         CONF_USER_AGENT: data.get(CONF_USER_AGENT, DEFAULT_USER_AGENT),
         CONF_PIN: data.get(CONF_PIN, DEFAULT_PIN),
     }
 
+    if include_model and CONF_MODEL in data:
+        entry[CONF_MODEL] = data[CONF_MODEL]
+
     # Only include CONF_NAME for YAML imports, never for UI flows
     if include_name and CONF_NAME in data:
         entry[CONF_NAME] = data[CONF_NAME]
+
+    if include_resources and CONF_RESOURCES in data:
+        entry[CONF_RESOURCES] = data[CONF_RESOURCES]
 
     return entry
 
@@ -61,7 +71,6 @@ class ComfoConnectConfigFlow(ConfigFlow, domain=DOMAIN):
         return vol.Schema(
             {
                 vol.Required(CONF_HOST): str,
-                vol.Required(CONF_MODEL, default=DEFAULT_NAME): str,
                 vol.Optional(CONF_TOKEN, default=DEFAULT_TOKEN): vol.All(
                     str,
                     vol.Length(min=32, max=32),
@@ -100,7 +109,7 @@ class ComfoConnectConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._abort_if_unique_id_configured(updates=entry_data)
 
                 return self.async_create_entry(
-                    title=entry_data[CONF_MODEL],
+                    title=_derive_entry_title(bridge, entry_data[CONF_HOST]),
                     data=entry_data,
                 )
 
@@ -113,7 +122,12 @@ class ComfoConnectConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_import(self, import_data: dict[str, Any]) -> ConfigFlowResult:
         """Import YAML configuration into a config entry."""
         # For YAML imports, keep the CONF_NAME field so it can be used as device name
-        entry_data = _build_entry_data(import_data, include_name=True)
+        entry_data = _build_entry_data(
+            import_data,
+            include_name=True,
+            include_resources=True,
+            include_model=True,
+        )
 
         try:
             bridge = await self.hass.async_add_executor_job(_validate_input, entry_data)
@@ -164,3 +178,11 @@ def _validate_input(user_input: dict[str, Any]) -> Bridge:
                 comfoconnect.disconnect()
 
     return bridge
+
+
+def _derive_entry_title(bridge: Bridge, host: str) -> str:
+    """Derive a deterministic, non-user-defined config entry title."""
+    if bridge_name := getattr(bridge, "name", None):
+        return str(bridge_name)
+
+    return host

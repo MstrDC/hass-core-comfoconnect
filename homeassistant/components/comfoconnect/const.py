@@ -9,6 +9,7 @@ PLATFORMS: list[Platform] = [Platform.FAN, Platform.SENSOR]
 SIGNAL_COMFOCONNECT_UPDATE_RECEIVED = "comfoconnect_update_received_{}"
 
 CONF_USER_AGENT = "user_agent"
+CONF_RESOURCES = "resources"
 
 DEFAULT_NAME = "ComfoAir Q"
 DEFAULT_PIN = 0000

@@ -5,29 +5,20 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from homeassistant.components.comfoconnect.const import DOMAIN
-from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
+from homeassistant.components.comfoconnect.const import CONF_RESOURCES, DOMAIN
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from homeassistant.setup import async_setup_component
 
 from tests.common import MockConfigEntry, assert_setup_component
 
-COMPONENT = "comfoconnect"
-VALID_CONFIG = {
-    COMPONENT: {"host": "192.0.2.1"},
-    SENSOR_DOMAIN: {
-        "platform": COMPONENT,
-        "resources": [
-            "current_humidity",
-            "current_temperature",
-            "supply_fan_duty",
-            "power_usage",
-            "preheater_power_total",
-        ],
-    },
-}
+VALID_RESOURCES = [
+    "current_humidity",
+    "current_temperature",
+    "supply_fan_duty",
+    "power_usage",
+    "preheater_power_total",
+]
 
 
 @pytest.fixture
@@ -73,9 +64,18 @@ async def setup_sensor(
     mock_comfoconnect_command: MagicMock,
     mock_comfoconnect_connect: MagicMock,
 ) -> None:
-    """Set up demo sensor component."""
-    with assert_setup_component(1, SENSOR_DOMAIN):
-        await async_setup_component(hass, SENSOR_DOMAIN, VALID_CONFIG)
+    """Set up ComfoConnect integration from a config entry."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_HOST: "192.0.2.1",
+            CONF_RESOURCES: VALID_RESOURCES,
+        },
+    )
+    entry.add_to_hass(hass)
+
+    with assert_setup_component(1, DOMAIN):
+        assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
 
@@ -114,6 +114,8 @@ async def test_setup_preserves_user_entity_name_and_clears_stale_original_name(
 @pytest.mark.usefixtures("setup_sensor")
 async def test_sensors(hass: HomeAssistant) -> None:
     """Test the sensors."""
+    assert hass.states.get("sensor.comfoair_q_outside_temperature") is None
+
     state = hass.states.get("sensor.comfoair_q_inside_humidity")
     assert state is not None
     assert state.name == "ComfoAir Q Inside humidity"

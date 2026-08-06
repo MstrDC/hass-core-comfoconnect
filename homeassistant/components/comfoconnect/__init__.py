@@ -6,8 +6,16 @@ from typing import Any
 from pycomfoconnect import Bridge, ComfoConnect
 import voluptuous as vol
 
+from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_MODEL, CONF_NAME, CONF_PIN, CONF_TOKEN
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_MODEL,
+    CONF_NAME,
+    CONF_PIN,
+    CONF_PLATFORM,
+    CONF_TOKEN,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -16,6 +24,7 @@ from homeassistant.helpers.dispatcher import dispatcher_send
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
+    CONF_RESOURCES,
     CONF_USER_AGENT,
     DEFAULT_NAME,
     DEFAULT_PIN,
@@ -54,8 +63,34 @@ def setup(hass: HomeAssistant, config: ConfigType) -> bool:
     if DOMAIN not in config:
         return True
 
-    hass.add_job(async_setup_import(hass, config[DOMAIN]))
+    import_config = dict(config[DOMAIN])
+    if sensor_resources := _extract_yaml_sensor_resources(config):
+        import_config[CONF_RESOURCES] = sensor_resources
+
+    hass.add_job(async_setup_import(hass, import_config))
     return True
+
+
+def _extract_yaml_sensor_resources(config: ConfigType) -> list[str] | None:
+    """Extract legacy sensor resources for this integration from YAML config."""
+    sensor_config = config.get(SENSOR_DOMAIN)
+    if sensor_config is None:
+        return None
+
+    platform_configs = (
+        sensor_config if isinstance(sensor_config, list) else [sensor_config]
+    )
+    for platform_config in platform_configs:
+        if not isinstance(platform_config, dict):
+            continue
+        if platform_config.get(CONF_PLATFORM) != DOMAIN:
+            continue
+
+        resources = platform_config.get(CONF_RESOURCES)
+        if isinstance(resources, list):
+            return [resource for resource in resources if isinstance(resource, str)]
+
+    return None
 
 
 async def async_setup_import(hass: HomeAssistant, conf: dict[str, Any]) -> None:
@@ -81,12 +116,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up ComfoConnect from a config entry."""
     host = entry.data[CONF_HOST]
 
-    # Determine device name based on config source
-    # If imported from YAML, use the 'name' field; otherwise use 'model'
+    # Determine device name based on config source.
+    # YAML imports may explicitly provide a device name; UI entries use entry title.
     if entry.source == SOURCE_IMPORT and CONF_NAME in entry.data:
         device_name = entry.data[CONF_NAME]
     else:
-        device_name = entry.data.get(CONF_MODEL, DEFAULT_NAME)
+        device_name = entry.title or DEFAULT_NAME
 
     # Fix stale entity names from previous setup sources.
     # User-customized names are stored in RegistryEntry.name, while the integration's

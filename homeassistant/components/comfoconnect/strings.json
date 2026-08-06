@@ -14,8 +14,6 @@
       "user": {
         "data": {
           "host": "[%key:common::config_flow::data::host%]",
-          "model": "Model",
-          "name": "[%key:common::config_flow::data::name%]",
           "pin": "PIN",
           "token": "Token",
           "user_agent": "Device name"
